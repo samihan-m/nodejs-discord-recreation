@@ -4,7 +4,7 @@
   "description": "Trying to recreate a simpler version of Discord.",
   "main": "index.js",
   "scripts": {
-    "start": "node ."
+    "start": "node index.js"
   },
   "author": "",
   "license": "ISC",
