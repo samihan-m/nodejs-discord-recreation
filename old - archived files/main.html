@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        Chatroom Hub
+    </title>
+    <link rel="stylesheet" href="main.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"
+        integrity="sha512-Jr0UIR/Q8MUX+93zjDOhuDUKLqJZObtwpkLJQcR9qMaLgL0thet39IORuavUaZFkZ8a4ktrUsKPM9mf5LWMduA=="
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div id="pane">
+        <div id="sidebar" class="col-flex">
+            <div id="create-channel-popup" class="col-flex hidden">
+                <button id="create-channel-cancel">Cancel</button>
+                <br>
+                <label class="text-center">The Name of the New Channel</label>
+                <input id="new-channel-name" placeholder="New Channel" autocomplete="off">
+                <button id="create-channel-confirm">Create Channel</button>
+                <br>
+            </div>
+            <!-- this is where all of the <button> elements that change the message log to the particular channel -->
+            <button id="create-channel">Create a New Channel</button>
+            <div id="channel-links">
+                <button class="chat-channel-link" id="channel-PRIME">Default Channel</button>
+            </div>
+        </div>
+        <div class="divider">
+            <h1 id="channel-name-display">Click on a Channel</h1>
+            <div id="message-log" class="form-center"></div>
+            <br>
+            <br>
+            <div id="search-form" class="form-center">
+                <label>send a message to the channel</label>
+                <input id="name" placeholder="Name" autocomplete="off">
+                <br>
+                <textarea id="content" placeholder="Message" autocomplete="off"></textarea>
+                <br>
+                <button id="send">Send</button>
+            </div>
+        </div>
+    <script>
+        var socket = io();
+        $(() => {
+            //What to do upon the create new channel button being clicked. (Display name entry input)
+            $("#create-channel").click(() => {
+                //Old HTML creation. Unused now, because I just ended up creating it once and putting it in the document, hiding/showing when necessary instead of rebuilding it every time.
+                /*
+                const channelCreationPopup = document.createElement("div");
+                channelCreationPopup.id = "create-channel-popup";
+                channelCreationPopup.classList.add("col-flex");
+
+                const channelCreationCancel = document.createElement("button");
+                channelCreationCancel.textContent = "Cancel";
+                channelCreationCancel.id = "create-channel-cancel";
+
+                const br = document.createElement("br");
+                
+                const channelNameLabel = document.createElement("label");
+                channelNameLabel.textContent = "The Name of the New Channel";
+                channelNameLabel.classList.add("text-center");
+
+                const channelNameInput = document.createElement("input");
+                channelNameInput.id = "new-channel-name";
+                channelNameInput.placeholder = "New Channel";
+                channelNameInput.autocomplete = "off";
+
+                const channelCreationConfirm = document.createElement("button");
+                channelCreationConfirm.textContent = "Create Channel";
+                channelCreationConfirm.id = "create-channel-confirm";
+
+                //This needs to be named differently from the first br, or else adding the br twice only keeps the second one. Odd.
+                const br2 = document.createElement("br");
+
+                //If the append with multiple elements doesn't work, try the appendChild on each individual element.
+                channelCreationPopup.append(channelCreationCancel, br, channelNameLabel, channelNameInput, channelCreationConfirm, br2);
+                
+                $("#sidebar").prepend(channelCreationPopup);
+                */
+                const popup = document.getElementById("create-channel-popup");
+                popup.classList.remove('hidden');
+
+                $("#create-channel").hide();
+            })
+            //What to do upon the cancel creating a new channel button being clicked. (Hide the creation menu)
+            $("#create-channel-cancel").click(() => {
+                const popup = document.getElementById("create-channel-popup");
+                popup.classList.add('hidden');
+                $("#create-channel").show();
+            })
+            //What to do upon the enter new channel name button being clicked. (Create channel)
+            $("#create-channel-confirm").click(() => {
+                let name = $("#new-channel-name").val();
+                //Validating input - make sure it's not too long or too short
+                if(name.length > 40) {
+                    alert("That name is too long, sorry.");
+                }
+                else if(name.length < 1) {
+                    alert("That name is too short, sorry.")
+                }
+                else {
+                    createChannel(name);
+                    //hiding the name entry after creation as well.
+                    const popup = document.getElementById("create-channel-popup");
+                    popup.classList.add('hidden');
+                    $("#create-channel").show();
+                }
+            })
+            //What to do upon a channel link being clicked. (Change the currentChannel variable, and reload messages)
+            $("#channel-links").on("click", ".chat-channel-link", (button) => {
+                let clickedLink = $(button.target);
+                let linkID = clickedLink.attr('id');
+                let channelID = linkID.substring(8);    //There are 8 characters in 'channel-', so get the characters after that.
+                window.currentChannel = channelID;
+
+                //Selection Indicator
+                //Removing the selected-channel class from all links,
+                $(".chat-channel-link").removeClass("selected-channel");
+                //Before adding it to the clicked link.
+                clickedLink.addClass("selected-channel");
+
+                //TODO: add a delete channel button. or rename. or something.
+
+                //Reload messages
+                reloadMessages();
+
+                //Renaming the title of the page to reflect the new selected channel
+                const header = document.getElementById("channel-name-display");
+                header.textContent = clickedLink.text();
+            })
+
+            //Load channels at init.
+            loadChannels();
+
+            //Setting the current channel variable to a default of "PRIME" (the default channel is channel-PRIME)
+            //window.currentChannel = "PRIME";
+
+            //Setting it to "blank" actually. I want users to click a channel before messages are loaded.
+            //When sending a message, if the user's channel is "blank", prevent that message from sending.
+            window.currentChannel = "blank";
+
+            //What to do upon the send button being clicked. (Message send)
+            $("#send").click(() => {
+                let now = new Date();
+                let name = $("#name").val();
+                //Adding a default name if no name was entered
+                if(name == "") {
+                    name = "Anonymous User";
+                }
+                let message = $("#content").val();
+                let currentChannel = String(window.currentChannel);
+                //Checking that a proper channel is selected
+                if(window.currentChannel == "blank") {
+                    alert("You need to select a channel to send the message to.");
+                }
+                //Checking that a message is entered
+                else if(message == ""){
+                   //Don't need to send an alert. Just don't send a message.
+                }
+                else {
+                    sendMessage({ userID: name, content: message, date: now, wasEdited: false, editDate: now, channel: currentChannel, ip: null, visible: true }); //IP is null for now, will be set in index.js
+                }
+                
+                //TODO: Add the clear message log function to a button somewhere.
+                /*
+                if(message == "clearMessages()") {  //clears the user's message history view if the entered message is "clearMessages()"
+                    $("#message-log").empty();
+                }
+                */
+                
+                $("#content").val(''); //clears the text area after sending the message.
+            })
+
+            //Disabling this because the user doesn't load onto a channel with messages. (They load onto the 'blank' channel which should never have messages.)
+            //Load messages at page load.
+            //getMessages();
+        })
+
+        /* Message Functions */
+
+        //Upon receiving a message event, call addMessage.
+        socket.on('message', addMessage)
+
+        //Calls buildMessage, passing the message object, and adds the returned message div HTML element to the message-log div on the document. 
+        function addMessage(message) {
+            const messageDiv = buildMessage(message);
+            $("#message-log").append(messageDiv);
+            
+            //The old message div constructor
+            //$("#message-log").append(`<div class="message"> <span class="message-username">${message.userID}</span> <span class="message-content">${message.content}</span> <span class="message-date">${time} ${day}</span> </div>`)
+        }
+
+        //Creates and returns message div HTML element from the information within the message object.
+        function buildMessage(message) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message");
+
+            //Still trying to figure out how to implement deletion of messages.
+            /*
+            const messageHide = document.createElement("button");
+            messageHide.classList.add("message-hide");
+            messageHide.textContent = 'X';
+            */
+
+            const messageSender = document.createElement("span");
+            messageSender.classList.add("message-username");
+            messageSender.textContent = message.userID;
+
+            const messageContent = document.createElement("span");
+            messageContent.classList.add("message-content");
+            messageContent.textContent = message.content;
+
+            const messageSendDate = document.createElement("span");
+            messageSendDate.classList.add("message-date");
+            let date = new Date(message.date);
+            let time = date.toLocaleTimeString();
+            let day = date.toDateString();
+            messageSendDate.textContent = time + " " + day;
+
+            messageDiv.append(messageSender, messageContent, messageSendDate);
+
+            return messageDiv;
+        }
+
+        //Clears the message-log div and calls getMessages to reload them.
+        function reloadMessages() {
+            const messageLog = document.getElementById("message-log");
+            //Iteratively clears the message log. I didn't want to use innerHTML because I heard it can be risky. Just being safe.
+            while(messageLog.firstChild) {
+                messageLog.removeChild(messageLog.firstChild);
+            }
+
+            //Create a loading message
+            const loadingMessage = document.createElement("h3");
+            loadingMessage.textContent = "Loading..";
+            loadingMessage.classList.add("text-center");
+
+            //Show the loading message so users don't see a blank message-log if loading messages takes a while for some reason.
+            messageLog.append(loadingMessage);
+            //Reload messages, passing the empty check as a callback
+            getMessages(messageLogEmptyCheck);
+            //Removing the loading message
+            messageLog.removeChild(messageLog.firstChild);
+        }
+
+        //Checks the message-log div to see if it has any messages in it. If not, add a div that says there are no messages.
+        function messageLogEmptyCheck() {
+            //Checking if there are no elements in the message log
+            const messageLog = document.getElementById("message-log");
+            if(messageLog.children.length == 0) {
+                //Creating an empty message
+                console.log("No Messages :)")
+                const emptyMessage = document.createElement("h3");
+                emptyMessage.classList.add("empty-log-announcement");
+                emptyMessage.textContent = "Nothing To See Here :)";
+                emptyMessage.classList.add("text-center");
+
+                messageLog.append(emptyMessage);
+            }
+        }
+
+        //Load all messages stored at /messages
+        //Passes channel: window.currentChannel as a filter
+        async function getMessages(callback) {
+            //If a callback is passed, the GET is await'd so the callback happens after the GET finishes.
+            if (callback) {
+                await $.get('/messages', { channel: window.currentChannel }, (data) => {
+                    data.forEach(addMessage);
+                })
+                callback();
+            }
+            else {
+                $.get('/messages', { channel: window.currentChannel }, (data) => {
+                    data.forEach(addMessage);
+                })
+            }
+        }
+
+        //Add the message to be sent to the /messages collection
+        function sendMessage(message) {
+            $.post('/messages', message)
+        }
+
+        /*Channel Functions*/
+
+        //Grabs the list of channel objects and calls addChannel for each of them
+        function loadChannels() {
+            $.get('/channels', (data) => {
+                data.forEach(addChannel);
+            })
+        }
+
+        //Grabs the ID and Name of each channel, passing those to createChannel, and adds the returned div to the document's sidebar.
+        function addChannel(channel) {
+            let channelID = channel.id;
+            let channelName = channel.name;
+            let channelDiv = buildChannel(channelID, channelName);
+            $("#channel-links").append(channelDiv);
+        }
+
+        //Creates a <button> element, which has an id equal to the id parameter, and text equal to the name parameter.
+        function buildChannel(id, name) {
+            const channelLink = document.createElement("button");
+            channelLink.classList.add("chat-channel-link");
+            let channelID = "channel-" + id;
+            channelLink.id = channelID;
+            channelLink.textContent = name;
+
+            //Wrapping the button in a div looked bad. Got rid of the div. Here it is in case I need it again.
+            /*
+            const channelDiv = document.createElement("div");
+            channelDiv.classList.add("channel");
+            channelDiv.appendChild(channelLink);
+            return channelDiv;
+            */
+            
+            //Use this return if the button is not wrapped in anything.
+            return channelLink;
+
+            //This is wrapping the button in a span. Buttons don't appear with full width, so I'm not using it.
+            /*
+            const channelSpan = document.createElement("span");
+            channelSpan.classList.add("channel");
+            channelSpan.appendChild(channelLink);
+            return channelSpan;
+            */
+        }
+        
+        //Whenever the socket receives a channel event, take that channel and add it to the document via the addChannel function.
+        socket.on("channel", addChannel);
+
+        //Sends the user-inputted channelName to the server, where it will generate an ID and create a channel.
+        function createChannel(channelName) {
+            const channel = {id: null, name: channelName}
+            $.post('/channels', channel);
+        }
+
+    </script>
+</body>
+
+</html>

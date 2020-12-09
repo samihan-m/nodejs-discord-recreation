@@ -1,0 +1,155 @@
+body {
+  background-color: #222222;
+  color: #eeeeee;
+}
+
+.form-center {
+  margin: 0;
+  position: relative;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+button:hover {
+  cursor: pointer;
+}
+
+#search-form {
+  width: 95%;
+}
+#search-form * {
+  font-size: 2em;
+  width: 100%;
+}
+
+input, textarea {
+  padding: 12px 20px;
+  margin: 8px 0;
+  display: inline-block;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+#message-log {
+  display: flex;
+  flex-direction: column;
+  height: 50vh;
+  font-size: 1.3em;
+  overflow-y: scroll;
+}
+
+.message {
+  color: white;
+  text-align: center;
+  border: 1px solid cyan;
+  width: 99%;
+  display: inline-block;
+  padding-top: 1em;
+  padding-bottom: 1em;
+
+  position: relative;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+#message-pane {
+  display: block;
+  width: 100%;
+}
+
+.message-sender {
+  display: block;
+  text-align: left; 
+  padding-left: 1.5em;
+  font-weight: bold;
+}
+
+.message-content {
+  display: block;
+  text-align: left;
+  padding-left: 2.5em;
+  padding-top: 0.4em;
+}
+
+.message-date {
+  display: block;
+  text-align: right;
+  padding-right: 2.5em;
+}
+
+
+
+
+
+
+/*Completely New Content (Added For NodeJS Chatroom Hub After Finishing NodeJS Chat)*/
+#channel-name-display {
+  text-align: center;
+  font-size: 4em;
+}
+
+#sidebar {
+  text-align: center;
+  width: 20%;
+  padding: 1em;
+  height: 100%;
+}
+
+#sidebar * button {
+  font-size: 2em;
+}
+
+#sidebar-footer {
+  position: fixed;
+  bottom: 0px;
+}
+
+#create-channel-popup label {
+  font-size: 2em;
+}
+
+/*Increasing the font-size here making the sidebar bug out a bit whenever the create channel menu opens. Not cool.*/
+#create-channel-popup,#create-server-popup input {
+  font-size: 1em;
+  text-align: center;
+}
+
+.channel,.server {
+  display: block;
+  width: 100%;
+}
+
+.selected-channel,.selected-server {
+  border: 4px solid cyan;
+}
+
+#channel-links,#server-links {
+  display: flex;
+  flex-direction: column;
+  font-size: 1em;
+  padding-top: 1em;
+}
+
+.chat-channel-link,.server-link {
+  margin: 0.3em;
+}
+
+#pane {
+  display: flex;
+  flex: 1 4 auto;
+  flex-direction: row;
+}
+
+.col-flex {
+  display: flex;
+  flex-direction: column;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.hidden {
+  display: none;
+}

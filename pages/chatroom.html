@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+        Chatroom Hub
+    </title>
+    <link rel="stylesheet" href="main.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"
+        integrity="sha512-Jr0UIR/Q8MUX+93zjDOhuDUKLqJZObtwpkLJQcR9qMaLgL0thet39IORuavUaZFkZ8a4ktrUsKPM9mf5LWMduA=="
+        crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <div id="pane">
+        <div id="sidebar" class="col-flex">
+            <div id="channels-sidebar" class="hidden">
+                <div id="create-channel-popup" class="col-flex hidden">
+                    <button id="create-channel-cancel">Cancel</button>
+                    <br>
+                    <label class="text-center">The Name of the New Channel</label>
+                    <input id="new-channel-name" placeholder="New Channel" autocomplete="off">
+                    <button id="create-channel-confirm">Create Channel</button>
+                    <br>
+                </div>
+                <h1>Channel List</h1>
+                <h1 id="server-name-display">Not in a Server</h1>
+                <button id="create-channel">Create a New Channel</button>
+                <div id="channel-links"></div>
+            </div>
+            <div id="servers-sidebar">
+                <div id="create-server-popup" class="col-flex hidden">
+                    <button id="create-server-cancel">Cancel</button>
+                    <br>
+                    <label class="text-center">The Name of the New Server</label>
+                    <input id="new-server-name" placeholder="New Server" autocomplete="off">
+                    <button id="create-server-confirm">Create Server</button>
+                    <br>
+                </div>
+                <h1 id="page-name-display">Samihan's Chatroom Hub Server List</h1>
+                <button id="create-server">Create a New Server</button>
+                <div id="server-links"></div>
+            </div>
+            <div id="sidebar-footer">
+                <button id="sidebar-switch-button">Switch Sidebar View</button>
+            </div>
+        </div>
+        <div id="message-pane" class="divider">
+            <h1 id="channel-name-display">Click on a Channel</h1>
+            <div id="message-log" class="form-center"></div>
+            <br>
+            <br>
+            <div id="search-form" class="form-center">
+                <label>send a message to the channel</label>
+                <input id="name" placeholder="Name" autocomplete="off">
+                <br>
+                <textarea id="content" placeholder="Message" autocomplete="off"></textarea>
+                <br>
+                <button id="send">Send</button>
+            </div>
+        </div>
+    <script>
+        var socket = io();
+        $(() => {
+            //What to do upon the create new server button being clicked. (Display name entry input)
+            $("#create-server").click(() => {
+                toggleServerCreationPopup();
+            })
+            //What to do upon the cancel creating a new server button being clicked. (Hide the creation menu)
+            $("#create-server-cancel").click(() => {
+                toggleServerCreationPopup();
+            })
+            //What to do upon the enter new server name button being clicked. (Create server)
+            $("#create-server-confirm").click(() => {
+                let name = $("#new-server-name").val();
+                //Validating input - make sure it's not too long or too short
+                if(name.length > 40) {
+                    alert("That name is too long, sorry.");
+                }
+                else if(name.length < 1) {
+                    alert("That name is too short, sorry.")
+                }
+                else {
+                    createServer(name);
+                    //hiding the name entry after creation as well.
+                    toggleServerCreationPopup();
+                }
+            })
+            //What to do upon a server link being clicked. (Change the currentServer variable, and reload channels)
+            $("#server-links").on("click", ".server-link", (button) => {
+                let clickedLink = $(button.target);
+                let linkID = clickedLink.attr('id');
+                let serverID = linkID.substring(7);    //There are 7 characters in 'server-', so get the characters after that.
+                window.currentServer = serverID;
+                //Telling server that the client has selected a server
+                socket.emit('join-server', {server: window.currentServer});
+
+                //Selection Indicator
+                //Removing the selected-server class from all links,
+                $(".server-link").removeClass("selected-server");
+                //Before adding it to the clicked link.
+                clickedLink.addClass("selected-server");
+
+                //Resets selected channel.
+                window.currentChannel = "";
+                reloadDiv("channel-links", getChannels);
+
+                //Renaming the server display to reflect the new selected server.
+                const header = document.getElementById("server-name-display");
+                window.currentServerName = clickedLink.text();
+                header.textContent = window.currentServerName;
+
+                //Transitions selecting a server into selecting a channel smoothly.
+                toggleSidebarVisibility();
+            })
+            //Toggles the visibility of the server creation popup.
+            function toggleServerCreationPopup() {
+                const popup = document.getElementById("create-server-popup");
+                popup.classList.toggle('hidden');
+                $("#create-server").toggle();
+            }
+            //What to do upon the create new channel button being clicked. (Display name entry input)
+            $("#create-channel").click(() => {
+                toggleChannelCreationPopup();
+            })
+            //What to do upon the cancel creating a new channel button being clicked. (Hide the creation menu)
+            $("#create-channel-cancel").click(() => {
+                toggleChannelCreationPopup();
+            })
+            //What to do upon the enter new channel name button being clicked. (Create channel)
+            $("#create-channel-confirm").click(() => {
+                let name = $("#new-channel-name").val();
+                //Validating input - make sure it's not too long or too short
+                if(name.length > 40) {
+                    alert("That name is too long, sorry.");
+                }
+                else if(name.length < 1) {
+                    alert("That name is too short, sorry.")
+                }
+                else {
+                    createChannel(name);
+                    //hiding the name entry after creation as well.
+                    toggleChannelCreationPopup();
+                }
+            })
+            //What to do upon a channel link being clicked. (Change the currentChannel variable, and reload messages)
+            $("#channel-links").on("click", ".chat-channel-link", (button) => {
+                let clickedLink = $(button.target);
+                let linkID = clickedLink.attr('id');
+                let channelID = linkID.substring(8);    //There are 8 characters in 'channel-', so get the characters after that.
+                window.currentChannel = channelID;
+                //Sending the information to server that the client has joined a channel
+                socket.emit('join-channel', {channel: window.currentChannel, server: window.currentServer});
+
+                //Selection Indicator
+                //Removing the selected-channel class from all links,
+                $(".chat-channel-link").removeClass("selected-channel");
+                //Before adding it to the clicked link.
+                clickedLink.addClass("selected-channel");
+
+                //TODO: add a delete channel button. or rename. or something.
+
+                /*
+                //Reload messages
+                reloadMessages();
+                */
+                //Reload messages
+                reloadDiv("message-log", getMessages);
+
+                //Renaming the title of the page to reflect the new selected channel
+                const header = document.getElementById("channel-name-display");
+                window.currentChannelName = clickedLink.text();
+                header.textContent = window.currentServerName + "-" + window.currentChannelName;
+            })
+            $("#sidebar-switch-button").click(() => {
+                toggleSidebarVisibility();
+            });
+
+            //Hide the Channel Creation popup
+            function toggleChannelCreationPopup() {
+                const popup = document.getElementById("create-channel-popup");
+                popup.classList.toggle('hidden');
+                $("#create-channel").toggle();
+            }
+
+            //Toggles the visibility of the channel/server sidebar. Only one should be visible at a time.
+            function toggleSidebarVisibility() {
+                $("#channels-sidebar").toggleClass("hidden");
+                $('#servers-sidebar').toggleClass("hidden");
+            }
+
+            //Reset selected server to nothing. User has to pick one.
+            window.currentServer = "";
+            getServers();
+
+            //What to do upon the send button being clicked. (Message send)
+            $("#send").click(() => {
+                let sendTime = new Date();
+                let name = $("#name").val();
+                //Adding a default name if no name was entered
+                if(name == "") {
+                    name = "Anonymous User";
+                }
+                let content = $("#content").val();
+                //Checking that a proper server is selected
+                if(window.currentServer == "") {
+                    alert("You need to select a server first.")
+                }
+                //Checking that a channel is selected
+                else if(window.currentChannel == "") {
+                    alert("You need to select a channel to send the message to.");
+                }
+                //Checking that a message is entered
+                else if(content == ""){
+                   //Don't need to send an alert. Just don't send a message.
+                }
+                else {
+                    sendMessage(name, content, sendTime);
+                    //Old message constructor was here. I moved it to sendMessage for consistency + clarity (all other constructors are in their send function)
+                    /*
+                    var message = {uid: null, sender: name, content: message, date: now, edited: false, editDate: null, visible: true};
+                    sendMessage(message);
+                    */
+                    $("#content").val(''); //clears the text area after sending the message.
+                }
+                //TODO: Add the clear message log function to a button somewhere.
+            })
+
+            //This makes it so that if I press ENTER in the message box it tries to send the message.
+            $("#content").keypress(function(event) {
+                if(event.keyCode == 13 || event.which == 13) {
+                    //This triggers the send function
+                    $("#send").click();
+                    //This prevents the ENTER being turned into a newline by the textarea
+                    event.preventDefault();
+                }
+            })
+        })
+
+        /* Server Functions */
+        //Calls addServer upon receiving a server event
+        socket.on('server', addServer);
+
+        //GETs the list of server objects from the database, constructs HTML elements for each, and adds them to the document.
+        function getServers() {
+                $.get('/servers', (data) => {
+                    data.forEach(addServer);
+                })
+            }
+
+        //Calls buildServer and appends the returned HTML element to the server-list div.
+        function addServer(server) {
+            const serverLink = buildServer(server.uid, server.name);
+            const serverList = document.getElementById('server-links');
+
+            serverList.append(serverLink);
+        }
+
+        //Creates a <button> element, which has an id equal to the id parameter, and text equal to the name parameter.
+        function buildServer(id, name) {
+            const serverLink = document.createElement("button");
+            serverLink.classList.add("server-link");
+            let serverID = "server-" + id;
+            serverLink.id = serverID;
+            serverLink.textContent = name;
+            
+            //Use this return if the button is not wrapped in anything.
+            return serverLink;
+        }
+
+        //Sends the user-inputted serverName to the server, where it will generate an ID and create a server.
+        function createServer(serverName) {
+            const server = {uid: null, name: serverName, channels: null}
+            $.post('/servers', server);
+        }
+
+        /*Channel Functions*/
+
+        //Whenever the socket receives a channel event, take that channel and add it to the document via the addChannel function.
+        socket.on("channel", addChannel);
+
+        //Grabs the ID and Name of each channel, passing those to createChannel, and adds the returned div to the document's sidebar.
+        function addChannel(channel) {
+            let channelID = channel.uid;
+            let channelName = channel.name;
+            let channelDiv = buildChannel(channelID, channelName);
+            $("#channel-links").append(channelDiv);
+        }
+
+        //Creates a <button> element, which has an id equal to the id parameter, and text equal to the name parameter.
+        function buildChannel(uid, name) {
+            const channelLink = document.createElement("button");
+            channelLink.classList.add("chat-channel-link");
+            let channelID = "channel-" + uid;
+            channelLink.id = channelID;
+            channelLink.textContent = name;
+            
+            //Use this return if the button is not wrapped in anything.
+            return channelLink;
+        }
+
+        //Sends the user-inputted channelName to the server, where it will generate an ID and create a channel.
+        //Passes selected server.
+        function createChannel(channelName) {
+            const channel = {uid: null, name: channelName, messages: null, server: window.currentServer}
+            $.post('/channels', channel);
+        }
+
+        //Grabs the list of channel objects and calls addChannel for each of them
+        //If a callback is passed, it awaits until the GET is finished before calling the callback.
+        async function getChannels(callback) {
+            if(callback) {
+                await $.get('/channels', {server: window.currentServer}, (data) => {
+                    data.forEach(addChannel);
+                })
+                callback();
+            }
+            else {
+                $.get('/channels', {server: window.currentServer}, (data) => {
+                    data.forEach(addChannel);
+                })
+            }
+        }
+
+        /* Message Functions */
+
+        //Upon receiving a message event, call addMessage.
+        socket.on('message', addMessage)
+
+        //Calls buildMessage, passing the message object, and adds the returned message div HTML element to the message-log div on the document. 
+        function addMessage(message, setScroll) {
+            const messageDiv = buildMessage(message);
+            $("#message-log").append(messageDiv);
+
+            if(setScroll) {
+                //Sets the scroll value of the message-log to the lowest point.
+                const messageLog = document.querySelector("#message-log");
+                messageLog.scrollTop = messageLog.scrollHeight - messageLog.clientHeight;
+            }
+        }
+
+        //Creates and returns message div HTML element from the information within the message object.
+        function buildMessage(message) {
+            const messageDiv = document.createElement("div");
+            messageDiv.classList.add("message");
+
+            //Still trying to figure out how to implement deletion of messages.
+            /*
+            const messageHide = document.createElement("button");
+            messageHide.classList.add("message-hide");
+            messageHide.textContent = 'X';
+            */
+
+            const messageSender = document.createElement("span");
+            messageSender.classList.add("message-sender");
+            messageSender.textContent = message.sender;
+
+            const messageContent = document.createElement("span");
+            messageContent.classList.add("message-content");
+            messageContent.textContent = message.content;
+
+            const messageSendDate = document.createElement("span");
+            messageSendDate.classList.add("message-date");
+            let date = new Date(message.date);
+            let time = date.toLocaleTimeString();
+            let day = date.toDateString();
+            messageSendDate.textContent = time + " " + day;
+
+            messageDiv.append(messageSender, messageContent, messageSendDate);
+
+            return messageDiv;
+        }
+
+        //Load all messages stored at /messages
+        //Passes channel: window.currentChannel as a filter
+        async function getMessages(callback) {
+            //If a callback is passed, the GET is await'd so the callback happens after the GET finishes.
+            if (callback) {
+                await $.get('/messages', { channel: window.currentChannel, server: window.currentServer }, (data) => {
+                    data.forEach(addMessage, true); //The true is setting setScroll to true, where the message-log will be scrolled all the way to the bottom, but only on initial loading of messages.
+                })
+                callback();
+            }
+            else {
+                $.get('/messages', { channel: window.currentChannel, server: window.currentServer }, (data) => {
+                    data.forEach(addMessage, true); //The true is setting setScroll to true, where the message-log will be scrolled all the way to the bottom, but only on initial loading of messages.
+                })
+            }
+        }
+
+        //Add the message to be sent to the /messages collection
+        //Passes channel and server information with the POST
+        function sendMessage(name, message, sendTime) {
+            var message = {uid: null, sender: name, content: message, date: sendTime, edited: false, editDate: null, visible: true, channel: window.currentChannel, server: window.currentServer};
+            $.post('/messages', message);
+        }
+
+        /* General Use Functions */
+
+        //General use reload function.
+        function reloadDiv(idToReload, loadFunction) {
+            const divToReload = document.getElementById(idToReload);
+            //Empty the div iteratively. I don't want to use innerHTML because I heard it can pose a security risk. Maybe I'm wrong? But this works so I'll use it.
+            while(divToReload.firstChild) {
+                divToReload.removeChild(divToReload.firstChild);
+            }
+
+            //Create loading message.
+            const loadingMessage = document.createElement("h3");
+            loadingMessage.textContent = "Loading..";
+            loadingMessage.classList.add("text-center");
+
+            //Show the loading message so users don't see nothing if loading takes a while for some reason.
+            divToReload.append(loadingMessage);
+            //Call load function to reload
+            loadFunction();
+            //Removing the loading message
+            divToReload.removeChild(divToReload.firstChild);
+
+            //Not checking for emptiness anymore because there are default channels/default messages that objects are instantiated with now, so nothing would be empty.
+            //Also, it wasn't working right, it was printing the empty message even if it wasn't empty, so turning it off fixes two issues.
+            /*
+            //Checking for emptiness
+            emptyDivCheck(divToReload);
+            */
+        }
+
+        //Checks the div to see if it has any elements in it. If not, add a div that says there are no elements.
+        function emptyDivCheck(divToCheck) {
+            //Checking if there are no elements in the div
+            if(divToCheck.children.length == 0) {
+                //Creating an empty message
+                const emptyMessage = document.createElement("h3");
+                emptyMessage.id = ("empty-div-announcement");
+                emptyMessage.textContent = "Nothing To See Here :)";
+                emptyMessage.classList.add("text-center");
+
+                divToCheck.append(emptyMessage);
+            }
+        }
+
+    </script>
+</body>
+
+</html>
