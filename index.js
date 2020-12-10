@@ -1,5 +1,7 @@
 const express = require('express');
-const { readFile } = require('fs').promises;
+//const { readFile } = require('fs').promises;
+const {readFileSync} = require('fs');
+const {join} = require('path');
 const app = express();
 const port = 3000;
 
@@ -18,6 +20,7 @@ mongoose.connect(dbURL, {
 
 var bodyParser = require('body-parser');
 const e = require('express');
+const { fileURLToPath } = require('url');
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 
@@ -236,7 +239,8 @@ app.get('/', async (req, res) => {
 })
 //Displays the chatroom.html file
 app.get('/main', async (request, response) => {
-    response.send(await readFile('./pages/chatroom.html', 'utf8'));
+    //response.send(await readFile('./pages/chatroom.html', 'utf8'));
+    response.send(readFileSync(join(__dirname, 'pages', 'chatroom.html'), 'utf8'));
 });
 
 var server = http.listen(port, () => console.log(`App available on http://localhost:${port}`));
