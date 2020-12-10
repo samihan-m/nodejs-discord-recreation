@@ -333,14 +333,15 @@
             //Checking to see if setScroll should be true
             const messageLog = document.querySelector("#message-log");
             //If the scrollbar is at the bottom, then make it stay there.
-            if(messageLog.scrollTop <= 1) {
+            if(messageLog.scrollHeight - messageLog.scrollTop === messageLog.clientHeight) {
                 setScroll = true;
             }
 
+            //Adding the message to the page.
             const messageDiv = buildMessage(message);
             $("#message-log").append(messageDiv);
 
-            
+            //Adjusting scroll bar.
             if(setScroll) {
                 //Sets the scroll value of the message-log to the lowest point.
                 messageLog.scrollTop = messageLog.scrollHeight - messageLog.clientHeight;
