@@ -43,7 +43,10 @@ io.on('connection', (socket) => {
       //Leave all other rooms before joining the new one.
       socket.leaveAll();
       
+      //Have to rejoin the server specific room after leaving it.
+      var server = getRoomName(data.server);
       var roomName = getRoomName(data.server, data.channel);
+      socket.join(server);
       socket.join(roomName);
       console.log("Join Channel", roomName);
     });
