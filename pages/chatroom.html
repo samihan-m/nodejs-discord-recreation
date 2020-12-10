@@ -330,12 +330,19 @@
 
         //Calls buildMessage, passing the message object, and adds the returned message div HTML element to the message-log div on the document. 
         function addMessage(message, setScroll) {
+            //Checking to see if setScroll should be true
+            const messageLog = document.querySelector("#message-log");
+            //If the scrollbar is at the bottom, then make it stay there.
+            if(messageLog.scrollTop == 0) {
+                setScroll = true;
+            }
+
             const messageDiv = buildMessage(message);
             $("#message-log").append(messageDiv);
 
+            
             if(setScroll) {
                 //Sets the scroll value of the message-log to the lowest point.
-                const messageLog = document.querySelector("#message-log");
                 messageLog.scrollTop = messageLog.scrollHeight - messageLog.clientHeight;
             }
         }
