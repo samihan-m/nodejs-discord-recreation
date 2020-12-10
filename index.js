@@ -59,9 +59,6 @@ function getRoomName(serverID, channelID) {
   return roomName;
 }
 
-//Used to serve the CSS sheet for the webpage
-app.use(express.static('pages/static/'));
-
 
 /*
 TODO:
@@ -242,5 +239,8 @@ app.get('/main', async (request, response) => {
     //response.send(await readFile('./pages/chatroom.html', 'utf8'));
     response.send(readFileSync(join(__dirname, 'pages', 'chatroom.html'), 'utf8'));
 });
+
+//Used to serve the CSS sheet for the webpage
+app.use(express.static(join(__dirname, 'pages', 'static')));
 
 var server = http.listen(port, () => console.log(`App available on http://localhost:${port}`));
