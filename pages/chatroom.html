@@ -333,7 +333,7 @@
             //Checking to see if setScroll should be true
             const messageLog = document.querySelector("#message-log");
             //If the scrollbar is at the bottom, then make it stay there.
-            if(messageLog.scrollTop == 0) {
+            if(messageLog.scrollTop <= 1) {
                 setScroll = true;
             }
 
