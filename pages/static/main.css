@@ -105,12 +105,12 @@ input, textarea {
   bottom: 0px;
 }
 
-#create-channel-popup label {
+#create-channel-popup label, #create-server-popup label {
   font-size: 2em;
 }
 
 /*Increasing the font-size here making the sidebar bug out a bit whenever the create channel menu opens. Not cool.*/
-#create-channel-popup,#create-server-popup input {
+#create-channel-popup input, #create-server-popup input {
   font-size: 1em;
   text-align: center;
 }
@@ -120,18 +120,18 @@ input, textarea {
   width: 100%;
 }
 
-.selected-channel,.selected-server {
+.selected-channel, .selected-server {
   border: 4px solid cyan;
 }
 
-#channel-links,#server-links {
+#channel-links, #server-links {
   display: flex;
   flex-direction: column;
   font-size: 1em;
   padding-top: 1em;
 }
 
-.chat-channel-link,.server-link {
+.chat-channel-link, .server-link {
   margin: 0.3em;
 }
 
