@@ -243,4 +243,4 @@ app.get('/main', async (request, response) => {
 //Used to serve the CSS sheet for the webpage
 app.use(express.static(join(__dirname, 'pages', 'static')));
 
-var server = http.listen(port, () => console.log(`App available on http://localhost:${port}`));
+var server = http.listen(process.env.PORT || port, () => console.log(`App available on http://localhost:${port}`));
