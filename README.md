@@ -1,5 +1,5 @@
 # nodejs-discord-recreation
- A one-page NodeJS recreation of Discord, with servers and channels and messages that only are visible to the channels they are sent in. The only thing missing is User Accounts.
+ A one-page NodeJS recreation of Discord, with servers and channels and messages that only are visible to the channels they are sent in. The only thing missing is User Accounts, and everything that comes with role-based permissions (i.e. deleting things, private channels, etc.).
  
  <b>Project Description</b>
  
